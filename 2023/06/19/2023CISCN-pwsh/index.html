@@ -1,0 +1,738 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="xyy">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="pwsh​		观察一下文件，是一个base64编码过的pwsh脚本，由于通过管道作为iex执行的内容，直接去除| iex后运行获取输出。  ​		输出后的文件的末尾可以发现我们的输入经过了这样的处理：将输入的内容以字节流的形式分割，逐位取前四位和后四位。 123$t&#x3D;Read-Host -Prompt &quot;Enter your flag&quot;;[System.Collections.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2023CISCN-pwsh">
+<meta property="og:url" content="https://who-is-xyy.github.io/2023/06/19/2023CISCN-pwsh/index.html">
+<meta property="og:site_name" content="xyy&#39;s Blog">
+<meta property="og:description" content="pwsh​		观察一下文件，是一个base64编码过的pwsh脚本，由于通过管道作为iex执行的内容，直接去除| iex后运行获取输出。  ​		输出后的文件的末尾可以发现我们的输入经过了这样的处理：将输入的内容以字节流的形式分割，逐位取前四位和后四位。 123$t&#x3D;Read-Host -Prompt &quot;Enter your flag&quot;;[System.Collections.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://who-is-xyy.github.io/img/pwsh.png">
+<meta property="article:published_time" content="2023-06-19T14:12:31.000Z">
+<meta property="article:modified_time" content="2023-06-19T14:23:35.348Z">
+<meta property="article:author" content="xyy">
+<meta property="article:tag" content="解混淆">
+<meta property="article:tag" content="hook">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://who-is-xyy.github.io/img/pwsh.png">
+  
+  
+  
+  <title>2023CISCN-pwsh - xyy&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"who-is-xyy.github.io","root":"/","version":"1.9.4","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>xyy&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/pwsh.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="2023CISCN-pwsh"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-06-19 22:12" pubdate>
+          2023年6月19日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          56 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">2023CISCN-pwsh</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h3 id="pwsh"><a href="#pwsh" class="headerlink" title="pwsh"></a>pwsh</h3><p>​		观察一下文件，是一个base64编码过的pwsh脚本，由于通过管道作为<code>iex</code>执行的内容，直接去除<code>| iex</code>后运行获取输出。</p>
+<p><img src="/2023/06/19/2023CISCN-pwsh/FirstGlance.png" srcset="/img/loading.gif" lazyload></p>
+<p>​		输出后的文件的末尾可以发现我们的输入经过了这样的处理：将输入的内容以字节流的形式分割，逐位取前四位和后四位。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-variable">$t</span>=<span class="hljs-built_in">Read-Host</span> <span class="hljs-literal">-Prompt</span> <span class="hljs-string">&quot;Enter your flag&quot;</span>;<br>[<span class="hljs-type">System.Collections.Queue</span>]<span class="hljs-variable">$tt</span>=([<span class="hljs-built_in">byte</span>[]][<span class="hljs-built_in">char</span>[]]<span class="hljs-variable">$t</span>|%&#123;<span class="hljs-variable">$_</span> <span class="hljs-operator">-shr</span> <span class="hljs-number">4</span>;<span class="hljs-variable">$_</span>%<span class="hljs-number">16</span>&#125;);<br><span class="hljs-built_in">iex</span>(<span class="hljs-variable">$M</span>[<span class="hljs-number">129693309641433576095262078804193086780</span>])<br></code></pre></td></tr></table></figure>
+
+<p><img src="/2023/06/19/2023CISCN-pwsh/TestInput.png" srcset="/img/loading.gif" lazyload></p>
+<p>​		在这个文件的上方则定义了一个巨大的map，在经过输入之后会以字符串的形式解析<code>$M[129693309641433576095262078804193086780]</code>并执行。可以将所有在M定义完成后的语句全部注释，输出一下M的内容。然后将M中的内容按照key.ps1：value的方式保存一下</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-variable">$M</span>.Keys| % &#123; <span class="hljs-variable">$M</span>[<span class="hljs-variable">$_</span>]|<span class="hljs-built_in">Out-File</span> <span class="hljs-string">&quot;M/<span class="hljs-variable">$</span>&#123;_&#125;.ps1&quot;</span> &#125;<br></code></pre></td></tr></table></figure>
+
+<p>​		接下来看看<code>iex($M[129693309641433576095262078804193086780])</code>干了什么：</p>
+<p>​		简单按照管道符和分号分隔一下可以发现它由四段b64编码的deflate流组成，并且通过例如<code>( $sHElLId[1]+$Shellid[13]+&quot;X&quot;)</code>的形式构造了<code>iex</code>，并将前者的输出通过管道输入到<code>iex</code>中执行。考虑到<code>iex</code>是将字符串作为输入执行的，我们可以直接提取出四段字符串的内容。</p>
+<p>​		在每个脚本中，我们同样可以发现类似的构造iex的方法，这里以第一段为例：</p>
+<p><img src="/2023/06/19/2023CISCN-pwsh/Example.png" srcset="/img/loading.gif" lazyload></p>
+<p>​		根据前面的分析，我们可以将这行生成<code>iex</code>的命令注释，执行这个ps1获取输出。</p>
+<p><img src="/2023/06/19/2023CISCN-pwsh/Output.png" srcset="/img/loading.gif" lazyload></p>
+<p>​		一样的<code>iex</code>执行命令，这边不再演示，直接解到最后一层：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs powershell">.(<span class="hljs-string">&quot;&#123;1&#125;&#123;0&#125;&quot;</span><span class="hljs-operator">-f</span> <span class="hljs-string">&#x27;t&#x27;</span>,<span class="hljs-string">&#x27;Se&#x27;</span>) (<span class="hljs-string">&quot;ye4x2&quot;</span>+<span class="hljs-string">&quot;v&quot;</span>)  (  [<span class="hljs-type">tYpE</span>](<span class="hljs-string">&quot;&#123;0&#125;&#123;1&#125;&#123;3&#125;&#123;2&#125;&quot;</span> <span class="hljs-operator">-F</span><span class="hljs-string">&#x27;SYStem&#x27;</span>,<span class="hljs-string">&#x27;.&#x27;</span>,<span class="hljs-string">&#x27;T&#x27;</span>,<span class="hljs-string">&#x27;COnVEr&#x27;</span>))  ;  <br>.(<span class="hljs-string">&quot;&#123;1&#125;&#123;0&#125;&#123;2&#125;&quot;</span> <span class="hljs-operator">-f</span> <span class="hljs-string">&#x27;T&#x27;</span>,<span class="hljs-string">&#x27;se&#x27;</span>,<span class="hljs-string">&#x27;-itEm&#x27;</span>) (<span class="hljs-string">&quot;&#123;2&#125;&#123;0&#125;&#123;3&#125;&#123;4&#125;&#123;1&#125;&quot;</span> <span class="hljs-operator">-f</span> <span class="hljs-string">&#x27;I&#x27;</span>,<span class="hljs-string">&#x27;Q&#x27;</span>,<span class="hljs-string">&#x27;VAR&#x27;</span>,<span class="hljs-string">&#x27;aBLE:&#x27;</span>,<span class="hljs-string">&#x27;9cg8m&#x27;</span>)  ( [<span class="hljs-type">tYPe</span>](<span class="hljs-string">&quot;&#123;3&#125;&#123;0&#125;&#123;2&#125;&#123;1&#125;&quot;</span><span class="hljs-operator">-F</span><span class="hljs-string">&#x27;sTEM.&#x27;</span>,<span class="hljs-string">&#x27;COdinG&#x27;</span>,<span class="hljs-string">&#x27;teXT.eN&#x27;</span>,<span class="hljs-string">&#x27;SY&#x27;</span>))  ;  <br><span class="hljs-variable">$</span>&#123;bBb`BB&#125;=  <span class="hljs-variable">$Ye4x2V::</span>(<span class="hljs-string">&quot;&#123;3&#125;&#123;4&#125;&#123;1&#125;&#123;2&#125;&#123;0&#125;&quot;</span> <span class="hljs-operator">-f</span> <span class="hljs-string">&#x27;ng&#x27;</span>,<span class="hljs-string">&#x27;Base6&#x27;</span>,<span class="hljs-string">&#x27;4Stri&#x27;</span>,<span class="hljs-string">&#x27;Fr&#x27;</span>,<span class="hljs-string">&#x27;om&#x27;</span>).Invoke((<span class="hljs-string">&quot;&#123;16&#125;&#123;7&#125;&#123;15&#125;&#123;2&#125;&#123;14&#125;&#123;10&#125;&#123;12&#125;&#123;0&#125;&#123;4&#125;&#123;1&#125;&#123;6&#125;&#123;3&#125;&#123;13&#125;&#123;8&#125;&#123;17&#125;&#123;18&#125;&#123;9&#125;&#123;5&#125;&#123;11&#125;&quot;</span><span class="hljs-operator">-f</span><span class="hljs-string">&#x27;yF&#x27;</span>,<span class="hljs-string">&#x27;XOhd&#x27;</span>,<span class="hljs-string">&#x27;chd2F3&#x27;</span>,<span class="hljs-string">&#x27;dlF&#x27;</span>,<span class="hljs-string">&#x27;3oXeBdhF3I&#x27;</span>,<span class="hljs-string">&#x27;XYx&#x27;</span>,<span class="hljs-string">&#x27;HF0QXVR&#x27;</span>,<span class="hljs-string">&#x27;QF3IXYxc6F0cXRBdV&#x27;</span>,<span class="hljs-string">&#x27;F2cXe&#x27;</span>,<span class="hljs-string">&#x27;k&#x27;</span>,<span class="hljs-string">&#x27;Zxd4F34XeRdjF2&#x27;</span>,<span class="hljs-string">&#x27;c+FywX&#x27;</span>,<span class="hljs-string">&#x27;sXRRd&#x27;</span>,<span class="hljs-string">&#x27;3IXdhd8&#x27;</span>,<span class="hljs-string">&#x27;wX&#x27;</span>,<span class="hljs-string">&#x27;F2UX&#x27;</span>,<span class="hljs-string">&#x27;Pxd&#x27;</span>,<span class="hljs-string">&#x27;Bd+F&#x27;</span>,<span class="hljs-string">&#x27;3&#x27;</span>));<br><span class="hljs-keyword">for</span>(<span class="hljs-variable">$</span>&#123;I`iI`ii&#125;=<span class="hljs-number">0</span>;<span class="hljs-variable">$</span>&#123;I`ii`Ii&#125; <span class="hljs-operator">-lt</span> <span class="hljs-variable">$</span>&#123;Bb`B`BB&#125;.<span class="hljs-string">&quot;COU`NT&quot;</span>;<span class="hljs-variable">$</span>&#123;<span class="hljs-built_in">II</span>`I<span class="hljs-built_in">ii</span>&#125;++)<br>&#123;<span class="hljs-variable">$</span>&#123;BbBbB&#125;[<span class="hljs-variable">$</span>&#123;<span class="hljs-type">iIiIi</span>&#125;]=<span class="hljs-variable">$</span>&#123;BbBbB&#125;[<span class="hljs-variable">$</span>&#123;<span class="hljs-type">iIiIi</span>&#125;] <span class="hljs-operator">-bxor</span> <span class="hljs-number">23</span>&#125;;<br>&amp;(<span class="hljs-string">&quot;&#123;1&#125;&#123;0&#125;&quot;</span> <span class="hljs-operator">-f</span><span class="hljs-string">&#x27;EX&#x27;</span>,<span class="hljs-string">&#x27;I&#x27;</span>) ( (  &amp;(<span class="hljs-string">&quot;&#123;1&#125;&#123;0&#125;&quot;</span> <span class="hljs-operator">-f</span><span class="hljs-string">&#x27;r&#x27;</span>,<span class="hljs-string">&#x27;DI&#x27;</span>)  (<span class="hljs-string">&quot;&#123;3&#125;&#123;2&#125;&#123;1&#125;&#123;0&#125;&quot;</span> <span class="hljs-operator">-f</span> <span class="hljs-string">&#x27;mQ&#x27;</span>,<span class="hljs-string">&#x27;ble:9cG8&#x27;</span>,<span class="hljs-string">&#x27;aRIa&#x27;</span>,<span class="hljs-string">&#x27;v&#x27;</span>)).<span class="hljs-string">&quot;v`AluE&quot;</span>::<span class="hljs-string">&quot;UNi`COdE&quot;</span>.<span class="hljs-string">&quot;GEtstri`NG&quot;</span>(<span class="hljs-variable">$</span>&#123;B`BBBB&#125;));<br></code></pre></td></tr></table></figure>
+
+<p>​		同样的逻辑，通过将<code>.iex</code>语句注释并执行脚本，我们将上述代码转化为<code>(Get-PSBreakpoint|Remove-PSBreakpoint);</code>。</p>
+<p>​		至此，我们完成了对于M中的第一个元素的第一段内容的分析，考虑到M中共有256个元素且每个元素都可能包含像这样的四段，人工解想必是不可能的。先通过脚本解base64：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs powershell">mkdir <span class="hljs-string">&#x27;../base64deflate&#x27;</span><br><span class="hljs-built_in">gci</span> ../M/*.ps1 | % &#123;<br>	<span class="hljs-variable">$base</span>=<span class="hljs-variable">$_</span>.BaseName<br>	<span class="hljs-variable">$i</span>=<span class="hljs-number">0</span><br>	<span class="hljs-built_in">gc</span> <span class="hljs-literal">-raw</span> <span class="hljs-variable">$_</span><br>	| <span class="hljs-built_in">Select-String</span> <span class="hljs-literal">-Pattern</span> <span class="hljs-string">&#x27;([a-zA-Z0-9+/=]+)&#x27;</span> <span class="hljs-literal">-AllMatches</span> <br>	| % &#123; <span class="hljs-variable">$_</span>.Matches.Value&#125;<br>	| ? &#123; <span class="hljs-variable">$_</span>.Length <span class="hljs-operator">-gt</span> <span class="hljs-number">50</span> &#125;<br>	| % &#123;<br>		<span class="hljs-built_in">New-Object</span> System.IO.Compression.DeflateStream([<span class="hljs-type">System.IO.MemoryStream</span>][<span class="hljs-type">System.Convert</span>]::FromBase64String(<span class="hljs-variable">$_</span>), [<span class="hljs-type">System.IO.Compression.CompressionMode</span>]::Decompress)<br>		| % &#123; (<span class="hljs-built_in">New-Object</span> System.IO.StreamReader(<span class="hljs-variable">$_</span>, [<span class="hljs-type">System.Text.Encoding</span>]::Ascii)).ReadToEnd() |<span class="hljs-built_in">Out-File</span> <span class="hljs-literal">-LiteralPath</span> ../base64deflate/<span class="hljs-variable">$</span>&#123;base&#125;.<span class="hljs-variable">$</span>&#123;i&#125;.ps1;<span class="hljs-variable">$i</span>++ &#125;<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>解完第一层的base64之后我们该如何通过脚本实现识别<code>iex</code>输出其执行的内容呢？考虑到<code>iex</code>是<code>Invoke-Expression</code>的别名，这里采用了将<code>Invoke-Expression</code>强行设定为<code>Write-Output</code>的别名，实现将每个经过<code>iex</code>执行的命令进行输出。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs powershell">mkdir <span class="hljs-string">&#x27;../hook_iex&#x27;</span><br><span class="hljs-built_in">Set-Alias</span> <span class="hljs-built_in">Invoke-Expression</span> <span class="hljs-built_in">Write-Output</span> <span class="hljs-literal">-Force</span><br><span class="hljs-built_in">Get-ChildItem</span> ../base64deflate/*.ps1|<span class="hljs-built_in">ForEach-Object</span>&#123;<br>	<span class="hljs-variable">$base</span> = <span class="hljs-variable">$_</span>.BaseName<br>	. <span class="hljs-variable">$_</span>|<span class="hljs-built_in">Out-File</span> <span class="hljs-string">&quot;../hook_iex/<span class="hljs-variable">$</span>&#123;base&#125;.ps1&quot;</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>实际过程中由于环境变量的原因，需要windows自带的powershell才能跑，后来下载的powershell7跑不了。</p>
+<p><img src="/2023/06/19/2023CISCN-pwsh/PSVersion.png" srcset="/img/loading.gif" lazyload></p>
+<p>查看处理过后的文件，虽然可读性增强了但是好像还是没有将<code>iex</code>处理完，重新写个脚本：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">Set-Alias</span> <span class="hljs-built_in">Invoke-Expression</span> <span class="hljs-built_in">Write-Output</span> <span class="hljs-literal">-Force</span><br><span class="hljs-built_in">Get-ChildItem</span> <span class="hljs-string">&#x27;../hook_iex/*.ps1&#x27;</span> | <span class="hljs-built_in">ForEach-Object</span> &#123;<br>	<span class="hljs-keyword">while</span> (<span class="hljs-variable">$true</span>) &#123;<br>		<span class="hljs-variable">$str</span> = <span class="hljs-built_in">Get-Content</span> <span class="hljs-literal">-Raw</span> <span class="hljs-variable">$_</span><br>		<span class="hljs-keyword">if</span>(<span class="hljs-variable">$str</span>.Length <span class="hljs-operator">-gt</span> <span class="hljs-number">250</span> <span class="hljs-operator">-and</span> !<span class="hljs-variable">$str</span>.Contains(<span class="hljs-string">&#x27;$M[@&#x27;</span>))&#123;<br>			<span class="hljs-variable">$str</span> = . <span class="hljs-variable">$_</span><br>			<span class="hljs-variable">$str</span>|<span class="hljs-built_in">Out-File</span> <span class="hljs-literal">-LiteralPath</span> <span class="hljs-variable">$_</span>.FullName<br>		&#125;<span class="hljs-keyword">else</span> &#123;<br>			<span class="hljs-keyword">break</span>;<br>		&#125;<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>可以看到所有脚本解混淆完毕，想起来M[0]的最后一段解出来是一个跳转，通过脚本取出所有包含以下格式的跳转表：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs powershell"><span class="hljs-built_in">iex</span>(<span class="hljs-variable">$M</span>[<span class="hljs-selector-tag">@</span>(<span class="hljs-number">105225267615381060379688514026974097864</span>,<br>    <span class="hljs-number">75396876044010357249315347176054192827</span>,<br>    <span class="hljs-number">217884439154847279774382839120263235923</span>,<br>    <span class="hljs-number">318661709067837555752929246722302823577</span>,<br>    <span class="hljs-number">19509760675443473229857571785488748754</span>,<br>    <span class="hljs-number">95745558884563686294601919894186373869</span>,<br>    <span class="hljs-number">206056027555959552539845030517210519978</span>,<br>    <span class="hljs-number">257504143117775831544168949607913977327</span>,<br>    <span class="hljs-number">74086437729404709013030235583044679340</span>,<br>    <span class="hljs-number">22937617477989053507015679147587112829</span>,<br>    <span class="hljs-number">181548514877102649222891676127414255428</span>,<br>    <span class="hljs-number">98749683482414452357531156779313217754</span>,<br>    <span class="hljs-number">8045107407088715149482582297175403241</span>,<br>    <span class="hljs-number">139350468289394680810766340324930767905</span>,<br>    <span class="hljs-number">310045750820067986473820567207839601380</span>,<br>    <span class="hljs-number">181548514877102649222891676127414255428</span>)<br>    [<span class="hljs-variable">$tt</span><span class="hljs-type">.Dequeue</span>()]]);<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs powershell">mkdir <span class="hljs-string">&#x27;../tables&#x27;</span><br><span class="hljs-built_in">Get-ChildItem</span> <span class="hljs-string">&#x27;../hook_iex/*.ps1&#x27;</span> | <span class="hljs-built_in">ForEach-Object</span> &#123;<br>	<span class="hljs-variable">$name</span>=<span class="hljs-variable">$_</span>.Name<br>	<span class="hljs-built_in">Write-Output</span> <span class="hljs-variable">$_</span>.FullName<br>		<span class="hljs-variable">$str</span> = <span class="hljs-built_in">Get-Content</span> <span class="hljs-literal">-Raw</span> <span class="hljs-variable">$_</span><br>		<span class="hljs-keyword">if</span>(<span class="hljs-variable">$str</span>.Contains(<span class="hljs-string">&#x27;$M[@&#x27;</span>))&#123;<br>			<span class="hljs-variable">$str</span>|<span class="hljs-built_in">Out-File</span> <span class="hljs-literal">-LiteralPath</span> <span class="hljs-string">&quot;../tables/<span class="hljs-variable">$</span>&#123;name&#125;&quot;</span><br>		&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>在vscode中<code>ctrl+shift+f</code>搜索一下flag即可找到提示flag正确的字样。</p>
+<p><img src="/2023/06/19/2023CISCN-pwsh/target.png" srcset="/img/loading.gif" lazyload alt="你藏的挺深啊.jpg"></p>
+<p>接着就是基于上文提到的每个部分的跳转表，根据入口和出口找到联通的路径：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np<br><span class="hljs-keyword">import</span> os<br><br>path = <span class="hljs-string">&#x27;./tables&#x27;</span><br>l = os.listdir(path)<br>M = &#123;&#125;<br><span class="hljs-keyword">def</span> <span class="hljs-title function_">extract</span>(<span class="hljs-params">p</span>):<br>	_ = path+<span class="hljs-string">&#x27;/&#x27;</span>+p<br>	f = <span class="hljs-built_in">open</span>(_,<span class="hljs-string">&#x27;rb&#x27;</span>)<br>	l = f.read().decode(<span class="hljs-string">&#x27;utf-16le&#x27;</span>)<br>	lists = l[l.find(<span class="hljs-string">&#x27;@&#x27;</span>)+<span class="hljs-number">2</span>:l.find(<span class="hljs-string">&#x27;)&#x27;</span>)].split(<span class="hljs-string">&#x27;,&#x27;</span>)<br>	n = p[:p.find(<span class="hljs-string">&#x27;E&#x27;</span>)]<br>	M.update(&#123;<span class="hljs-built_in">str</span>(n):[<span class="hljs-built_in">int</span>(x) <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> lists]&#125;)<br><span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> l:<br>	extract(x)<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">ezSerach</span>(<span class="hljs-params">s</span>):<br>    tmpRes = []<br>    tmpHd = []<br>    <span class="hljs-keyword">for</span> hd <span class="hljs-keyword">in</span> M.keys():<br>        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> hd <span class="hljs-keyword">in</span> posFlag.keys():<br>            <span class="hljs-keyword">for</span> it <span class="hljs-keyword">in</span> M[hd]:<br>                tmp = (<span class="hljs-built_in">str</span>(it))[:<span class="hljs-number">13</span>]<br>                <span class="hljs-keyword">if</span>(tmp == s):<br>                    tmpHd.append(hd)<br>                    tmpRes.append(M[hd].index(it))<br>    <span class="hljs-keyword">return</span> (tmpHd, tmpRes)<br><br><span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">&quot;__main__&quot;</span>:<br>    beg = <span class="hljs-string">&quot;1.29693309641434&quot;</span><br>    end = <span class="hljs-string">&quot;9.39202168950155&quot;</span><br>    cur = end<br>    path1 = []<br>    posFlag = &#123;&#125;<br>    newM = <span class="hljs-built_in">list</span>(M.keys())<br>    <span class="hljs-keyword">while</span>(cur != beg):<br>        posFlag[cur] = <span class="hljs-number">1</span><br>        ck = cur.replace(<span class="hljs-string">&quot;.&quot;</span>, <span class="hljs-string">&quot;&quot;</span>)<br>        ck = ck[:<span class="hljs-number">13</span>]<br>        cur, vals = ezSerach(ck)<br>        <span class="hljs-keyword">if</span>(<span class="hljs-built_in">len</span>(cur)&gt;<span class="hljs-number">1</span>):<br>            <span class="hljs-built_in">print</span>(cur)<br>            <span class="hljs-built_in">print</span>(vals)<br>        cur = cur[<span class="hljs-number">0</span>]<br>        vals = vals[<span class="hljs-number">0</span>]<br>        path1.append(vals)<br>    path1.reverse()<br>    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>,<span class="hljs-built_in">len</span>(path1),<span class="hljs-number">2</span>):<br>        <span class="hljs-built_in">print</span>(<span class="hljs-built_in">chr</span>(path1[i]*<span class="hljs-number">16</span>+path1[i+<span class="hljs-number">1</span>]),end=<span class="hljs-string">&#x27;&#x27;</span>)<br><span class="hljs-comment">#flag&#123;e222e1ac-7f90-49ec-a4ae-ccbbd7aec836&#125;</span><br></code></pre></td></tr></table></figure>
+
+<p>目录结构：<img src="/2023/06/19/2023CISCN-pwsh/Structure.png" srcset="/img/loading.gif" lazyload></p>
+<p>P.S. <code>Windows Powershell</code>的<code>ForEach-Object</code>没有并行，真不是人用的！</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E8%B5%9B%E5%90%8E%E8%A7%A3/" class="category-chain-item">赛后解</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E8%A7%A3%E6%B7%B7%E6%B7%86/">#解混淆</a>
+      
+        <a href="/tags/hook/">#hook</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>2023CISCN-pwsh</div>
+      <div>https://who-is-xyy.github.io/2023/06/19/2023CISCN-pwsh/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>xyy</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年6月19日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/06/19/2023%E8%A5%BF%E6%B9%96%E8%AE%BA%E5%89%91-DualPersonality/" title="2023西湖论剑-DualPersonality">
+                        <span class="hidden-mobile">2023西湖论剑-DualPersonality</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        if (!window.MathJax) {
+          window.MathJax = {
+            tex    : {
+              inlineMath: { '[+]': [['$', '$']] }
+            },
+            loader : {
+              load: ['ui/lazy']
+            },
+            options: {
+              renderActions: {
+                insertedScript: [200, () => {
+                  document.querySelectorAll('mjx-container').forEach(node => {
+                    let target = node.parentNode;
+                    if (target.nodeName.toLowerCase() === 'li') {
+                      target.parentNode.classList.add('has-jax');
+                    }
+                  });
+                }, '', false]
+              }
+            }
+          };
+        } else {
+          MathJax.startup.document.state(0);
+          MathJax.texReset();
+          MathJax.typeset();
+          MathJax.typesetPromise();
+        }
+
+        Fluid.events.registerRefreshCallback(function() {
+          if ('MathJax' in window && MathJax.startup.document && typeof MathJax.startup.document.state === 'function') {
+            MathJax.startup.document.state(0);
+            MathJax.texReset();
+            MathJax.typeset();
+            MathJax.typesetPromise();
+          }
+        });
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.2/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
