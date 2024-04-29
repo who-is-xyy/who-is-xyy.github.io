@@ -1,0 +1,765 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="xyy">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="好像其实应该还是算一种很常见的实现GetProcAddress的方式">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从一道写进程REV看GetProcAddress的实现">
+<meta property="og:url" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="xyy&#39;s Blog">
+<meta property="og:description" content="好像其实应该还是算一种很常见的实现GetProcAddress的方式">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115052501.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115704970.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115726450.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115956140.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120011768.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120220327.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120239446.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120312860.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120347709.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120641519.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120715886.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721121053896.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816100114043.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816100149090.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105450312.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105539165.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105555841.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816110830414.png">
+<meta property="og:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816111427502.png">
+<meta property="article:published_time" content="2024-04-29T12:15:01.000Z">
+<meta property="article:modified_time" content="2024-04-29T12:54:01.870Z">
+<meta property="article:author" content="xyy">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="数据结构恢复">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://who-is-xyy.github.io/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115052501.png">
+  
+  
+  
+  <title>从一道写进程REV看GetProcAddress的实现 - xyy&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"who-is-xyy.github.io","root":"/","version":"1.9.4","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>xyy&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="从一道写进程REV看GetProcAddress的实现"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-04-29 20:15" pubdate>
+          2024年4月29日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3.3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          28 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">从一道写进程REV看GetProcAddress的实现</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h3 id="ShellCode"><a href="#ShellCode" class="headerlink" title="ShellCode"></a>ShellCode</h3><h4 id="相关文件分析"><a href="#相关文件分析" class="headerlink" title="相关文件分析"></a>相关文件分析</h4><h5 id="shellcode-code"><a href="#shellcode-code" class="headerlink" title="shellcode.code"></a>shellcode.code</h5><p>一个比较大的函数，用于被读入<code>gen_shellcode.exe</code>中运行。下图中的<code>sub_4255B4</code></p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115052501.png" srcset="/img/loading.gif" lazyload alt="shellcode.code"></p>
+<h5 id="gen-shellcode-exe"><a href="#gen-shellcode-exe" class="headerlink" title="gen_shellcode.exe"></a>gen_shellcode.exe</h5><p>执行<code>shellcode.code</code>中的机器码，调用了一些<code>api</code>，并且夹杂了一些判断<code>flag</code>的逻辑。</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115704970.png" srcset="/img/loading.gif" lazyload></p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115726450.png" srcset="/img/loading.gif" lazyload></p>
+<p>很奇怪的是在给<code>v16</code>赋值的时候使用的<code>v21</code>是使用<code>0</code>进行初始化的，MARK一下</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs Cpp"><span class="hljs-built_in">strcpy</span>(v21, <span class="hljs-string">&quot;000000000000000000000000000000000000000000&quot;</span>);<br></code></pre></td></tr></table></figure>
+
+<p>先写部分的exp:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs python">v19 = [<span class="hljs-number">0x00000016</span>, <span class="hljs-number">0x000000B7</span>, <span class="hljs-number">0x000000A2</span>, <span class="hljs-number">0x0000000C</span>, <span class="hljs-number">0x00000079</span>, <span class="hljs-number">0x00000003</span>, <span class="hljs-number">0x00000003</span>, <span class="hljs-number">0x000000AC</span>, <span class="hljs-number">0x0000009E</span>, <span class="hljs-number">0x00000017</span>, <span class="hljs-number">0x00000082</span>, <span class="hljs-number">0x00000057</span>, <span class="hljs-number">0x0000009A</span>, <span class="hljs-number">0x0000000D</span>, <span class="hljs-number">0x000000BC</span>, <span class="hljs-number">0x00000024</span>, <span class="hljs-number">0x0000007F</span>, <span class="hljs-number">0x0000009E</span>, <span class="hljs-number">0x0000005C</span>, <span class="hljs-number">0x0000008B</span>, <span class="hljs-number">0x000000EE</span>, <span class="hljs-number">0x000000D0</span>, <span class="hljs-number">0x0000005D</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x000000BF</span>, <span class="hljs-number">0x00000070</span>, <span class="hljs-number">0x00000047</span>, <span class="hljs-number">0x00000009</span>, <span class="hljs-number">0x00000022</span>, <span class="hljs-number">0x000000D2</span>, <span class="hljs-number">0x0000000F</span>, <span class="hljs-number">0x000000EA</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x0000006D</span>, <span class="hljs-number">0x0000006C</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x0000001E</span>, <span class="hljs-number">0x00000068</span>, <span class="hljs-number">0x0000006A</span>, <span class="hljs-number">0x00000061</span>, <span class="hljs-number">0x0000006C</span>, <span class="hljs-number">0x000000A3</span>]<br>v21 = [<span class="hljs-number">0</span>] * <span class="hljs-built_in">len</span>(v19) <br><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>,<span class="hljs-number">42</span>):<br>	v16 = v19[i] ^ <span class="hljs-number">0x46</span> &amp; <span class="hljs-number">0xff</span><br>	v15 = v16 + <span class="hljs-number">35</span> &amp; <span class="hljs-number">0xff</span><br>	v21[i] = v15 ^ i &amp; <span class="hljs-number">0xff</span><br>	<span class="hljs-built_in">print</span>(<span class="hljs-built_in">hex</span>(v21[i]),end=<span class="hljs-string">&#x27;,&#x27;</span>)<br></code></pre></td></tr></table></figure>
+
+<h5 id="nicai-exe"><a href="#nicai-exe" class="headerlink" title="nicai.exe"></a>nicai.exe</h5><p><del>有本事你把pdb也别给我</del></p>
+<p><code>shift+f12</code>搜索关键字符串找<code>main</code>函数：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721115956140.png" srcset="/img/loading.gif" lazyload></p>
+<p><code>main</code>函数：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120011768.png" srcset="/img/loading.gif" lazyload></p>
+<p><del>回收站，启动！</del> </p>
+<p>其实找找<code>io</code>理理逻辑也还行：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120220327.png" srcset="/img/loading.gif" lazyload alt="input"></p>
+<p>输入长度为42：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120239446.png" srcset="/img/loading.gif" lazyload></p>
+<p>把输入<code>slice</code>成一个 <code>32 + 10</code> ：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120312860.png" srcset="/img/loading.gif" lazyload></p>
+<p>前32位的<code>slice</code>做<code>AES_ECB</code>：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120347709.png" srcset="/img/loading.gif" lazyload></p>
+<p>按照函数名逆逆可以知道对输入没有经过其他的处理</p>
+<p>之后的两个字符串的输出：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120641519.png" srcset="/img/loading.gif" lazyload></p>
+<p>关键逻辑来了：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721120715886.png" srcset="/img/loading.gif" lazyload></p>
+<p>在<code>gen_shellcode.exe</code>的文件中，从<code>0x425680</code>处开始，到<code>0x425728</code>处结束，隔三个<code>byte</code>单字节写入<code>AES(input[:32])+input[-10:]</code></p>
+<p>翻译成人话：之前<code>gen_shellcode.exe</code>中给<code>v21</code>赋值时的<code>&#39;0&#39;</code>被修改了</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230721121053896.png" srcset="/img/loading.gif" lazyload></p>
+<p>所以上面提到的<code>gen_shellcode.exe</code>中的v21数组的初始化操作是通过这里的写入完成。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs python">v19 = [<span class="hljs-number">0x00000016</span>, <span class="hljs-number">0x000000B7</span>, <span class="hljs-number">0x000000A2</span>, <span class="hljs-number">0x0000000C</span>, <span class="hljs-number">0x00000079</span>, <span class="hljs-number">0x00000003</span>, <span class="hljs-number">0x00000003</span>, <span class="hljs-number">0x000000AC</span>, <span class="hljs-number">0x0000009E</span>, <span class="hljs-number">0x00000017</span>, <span class="hljs-number">0x00000082</span>, <span class="hljs-number">0x00000057</span>, <span class="hljs-number">0x0000009A</span>, <span class="hljs-number">0x0000000D</span>, <span class="hljs-number">0x000000BC</span>, <span class="hljs-number">0x00000024</span>, <span class="hljs-number">0x0000007F</span>, <span class="hljs-number">0x0000009E</span>, <span class="hljs-number">0x0000005C</span>, <span class="hljs-number">0x0000008B</span>, <span class="hljs-number">0x000000EE</span>, <span class="hljs-number">0x000000D0</span>, <span class="hljs-number">0x0000005D</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x000000BF</span>, <span class="hljs-number">0x00000070</span>, <span class="hljs-number">0x00000047</span>, <span class="hljs-number">0x00000009</span>, <span class="hljs-number">0x00000022</span>, <span class="hljs-number">0x000000D2</span>, <span class="hljs-number">0x0000000F</span>, <span class="hljs-number">0x000000EA</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x0000006D</span>, <span class="hljs-number">0x0000006C</span>, <span class="hljs-number">0x00000062</span>, <span class="hljs-number">0x0000001E</span>, <span class="hljs-number">0x00000068</span>, <span class="hljs-number">0x0000006A</span>, <span class="hljs-number">0x00000061</span>, <span class="hljs-number">0x0000006C</span>, <span class="hljs-number">0x000000A3</span>]<br>v21 = [<span class="hljs-number">0</span>] * <span class="hljs-built_in">len</span>(v19) <br><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>,<span class="hljs-number">42</span>):<br>	v16 = v19[i] ^ <span class="hljs-number">0x46</span> &amp; <span class="hljs-number">0xff</span><br>	v15 = v16 + <span class="hljs-number">35</span> &amp; <span class="hljs-number">0xff</span><br>	v21[i] = v15 ^ i &amp; <span class="hljs-number">0xff</span><br>	<span class="hljs-keyword">if</span> i &lt; <span class="hljs-number">32</span>:<br>		<span class="hljs-built_in">print</span>(<span class="hljs-built_in">hex</span>(v21[i]),end=<span class="hljs-string">&#x27;,&#x27;</span>)<br><span class="hljs-comment">#recipe=AES_Decrypt(%7B&#x27;option&#x27;:&#x27;UTF8&#x27;,&#x27;string&#x27;:&#x27;yi_he_wei_gui~~~&#x27;%7D,%7B&#x27;option&#x27;:&#x27;Hex&#x27;,&#x27;string&#x27;:&#x27;&#x27;%7D,&#x27;ECB/NoPadding&#x27;,&#x27;Hex&#x27;,&#x27;Raw&#x27;,%7B&#x27;option&#x27;:&#x27;Hex&#x27;,&#x27;string&#x27;:&#x27;&#x27;%7D,%7B&#x27;option&#x27;:&#x27;Hex&#x27;,&#x27;string&#x27;:&#x27;&#x27;%7D)&amp;input=NzMxNTA1NmU2NjZkNmUwYWYzN2RlZDNmZjM2MzEzOGE0Y2VhMmZlM2RmYWMyODUwMDQ0MDNlNjk5YmFhNzJkMA</span><br><span class="hljs-comment">#Welcome_to_the_CTF_world_Have_a_</span><br><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>,<span class="hljs-number">42</span>):<br>	<span class="hljs-keyword">if</span> i &gt;= <span class="hljs-number">32</span>:<br>		<span class="hljs-built_in">print</span>(<span class="hljs-built_in">chr</span>(v21[i]),end=<span class="hljs-string">&#x27;&#x27;</span>)<br><span class="hljs-comment">#good_time!        </span><br></code></pre></td></tr></table></figure>
+
+<h4 id="后话"><a href="#后话" class="headerlink" title="后话"></a>后话</h4><p><del>不要问我为什么不放在前面一起讲</del></p>
+<p>上文中提到的<code>gen_shellcode.exe</code>中其实还是有很多关键逻辑没有在这<code>WP</code>中体现的，这里先留个印象：<img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816100114043.png" srcset="/img/loading.gif" lazyload></p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816100149090.png" srcset="/img/loading.gif" lazyload></p>
+<p>首先需要对PE文件格式有一定了解：[PE Format Poster.graffle (openrce.org)](<a target="_blank" rel="noopener" href="http://www.openrce.org/reference_library/files/reference/PE">http://www.openrce.org/reference_library/files/reference/PE</a> Format.pdf)</p>
+<p>首先，<code>v31 = __readfsdword(0x30u)</code>在32位下获取了当前进程的<code>PEB</code>指针，而后者作为一个结构体，定义是这样的：<a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb">PEB结构体描述</a>。因此，后一行可以被理解为获取了当前<code>PEB</code>中的<code>LDR</code>，接下来的几行也是从对应结构体中获取变量。对应结构体的定义可以参考<code>IDA</code>中的定义。</p>
+<p>接着进入一个<code>do-while</code>循环，通过遍历链表的方式找到<code>kernel32.dll</code>在链表中的位置，从而定位其装载入内存后的<code>DLLBase</code>：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105450312.png" srcset="/img/loading.gif" lazyload></p>
+<p>可以看到：<img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105539165.png" srcset="/img/loading.gif" lazyload><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816105555841.png" srcset="/img/loading.gif" lazyload></p>
+<p>至此，我们成功定位到了<code>kernel32.dll</code>在内存中的位置，接下来需要从它的导出表中获取对应函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs C">v10 = (_IMAGE_EXPORT_DIRECTORY *)((<span class="hljs-type">char</span> *)DllBase + *(_DWORD *)((<span class="hljs-type">char</span> *)DllBase + *((_DWORD *)DllBase + <span class="hljs-number">15</span>) + <span class="hljs-number">0x78</span>));<br></code></pre></td></tr></table></figure>
+
+<p>观察一下上述代码并回顾一下PE格式定义，发现在DOS头的<code>0x3C - 0x3F</code>的位置是<code>e_lfanew</code>字段，对应了<code>NT_HEADER</code>的偏移。而<code>NT_HEADER</code>处开始<code>0x78</code>偏移地址正好对应了<code>OPTIONAL_HEADER32</code>中的<code>DATA_DIRECTORY</code>数组，相关定义可以参照<a target="_blank" rel="noopener" href="https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_data_directory">IMAGE_DATA_DIRECTORY structure</a>，其中第0项对应了导出表的<code>VA</code>和大小，遂将<code>v10</code>类型定义为<code>PIMAGE_EXPORT_DIRECTORY</code>。至此，代码可读性upup！</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816110830414.png" srcset="/img/loading.gif" lazyload></p>
+<p>接下来就是从<code>kernel32.dll</code>的导出表中获取<code>GetProcAddress</code>相关的信息，并通过该<code>API</code>获取<code>LoadLibraryA</code>以加载<code>user32.dll</code>，并从中得到<code>MessageBoxA</code>用于最后校验过后的提示的<code>MessageBox</code>：</p>
+<p><img src="/2024/04/29/%E4%BB%8E%E4%B8%80%E9%81%93%E5%86%99%E8%BF%9B%E7%A8%8BREV%E7%9C%8BGetProcAddress%E7%9A%84%E5%AE%9E%E7%8E%B0//image-20230816111427502.png" srcset="/img/loading.gif" lazyload></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%BB%84%E4%BC%9A%E5%88%86%E4%BA%AB/" class="category-chain-item">组会分享</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/rust/">#rust</a>
+      
+        <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E6%81%A2%E5%A4%8D/">#数据结构恢复</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>从一道写进程REV看GetProcAddress的实现</div>
+      <div>https://who-is-xyy.github.io/2024/04/29/从一道写进程REV看GetProcAddress的实现/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>xyy</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2024年4月29日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2024/04/29/D3CTF2024-RandomVM/" title="D3CTF2024-RandomVM">
+                        <span class="hidden-mobile">D3CTF2024-RandomVM</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        if (!window.MathJax) {
+          window.MathJax = {
+            tex    : {
+              inlineMath: { '[+]': [['$', '$']] }
+            },
+            loader : {
+              load: ['ui/lazy']
+            },
+            options: {
+              renderActions: {
+                insertedScript: [200, () => {
+                  document.querySelectorAll('mjx-container').forEach(node => {
+                    let target = node.parentNode;
+                    if (target.nodeName.toLowerCase() === 'li') {
+                      target.parentNode.classList.add('has-jax');
+                    }
+                  });
+                }, '', false]
+              }
+            }
+          };
+        } else {
+          MathJax.startup.document.state(0);
+          MathJax.texReset();
+          MathJax.typeset();
+          MathJax.typesetPromise();
+        }
+
+        Fluid.events.registerRefreshCallback(function() {
+          if ('MathJax' in window && MathJax.startup.document && typeof MathJax.startup.document.state === 'function') {
+            MathJax.startup.document.state(0);
+            MathJax.texReset();
+            MathJax.typeset();
+            MathJax.typesetPromise();
+          }
+        });
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.2/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
